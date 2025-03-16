@@ -62,30 +62,43 @@ void touchscreen_read(lv_indev_t * indev, lv_indev_data_t * data) {
   }
 }
 
+
+static void add_data(lv_timer_t * t)
+{
+    lv_obj_t * chart = (lv_obj_t *)lv_timer_get_user_data(t);
+    lv_chart_series_t * ser = lv_chart_get_series_next(chart, NULL);
+
+    lv_chart_set_next_value(chart, ser, analogRead(14));
+
+    uint16_t p = lv_chart_get_point_count(chart);
+    uint16_t s = lv_chart_get_x_start_point(chart, ser);
+    int32_t * a = lv_chart_get_y_array(chart, ser);
+
+    a[(s + 1) % p] = LV_CHART_POINT_NONE;
+    a[(s + 2) % p] = LV_CHART_POINT_NONE;
+    a[(s + 2) % p] = LV_CHART_POINT_NONE;
+
+    lv_chart_refresh(chart);
+}
+
 void lv_draw_screen() {
-  lv_obj_t * scr = lv_disp_get_scr_act(NULL);
+  /*Create a stacked_area_chart.obj*/
+  lv_obj_t * chart = lv_chart_create(lv_screen_active());
+  lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
+  lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 1600, 2000);
+  lv_obj_set_style_size(chart, 0, 0, LV_PART_INDICATOR);
+  lv_obj_set_size(chart, 280, 150);
+  lv_obj_center(chart);
 
-  lv_obj_t * label = lv_label_create(scr);
-  lv_label_set_text(label, "Hello World!");
-  lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+  lv_chart_set_point_count(chart, 80);
+  lv_chart_series_t * ser = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+  /*Prefill with data*/
+  uint32_t i;
+  for(i = 0; i < 80; i++) {
+      lv_chart_set_next_value(chart, ser, lv_rand(10, 11));
+  }
 
-  lv_obj_t * btn = lv_btn_create(scr);
-  lv_obj_align(btn, LV_ALIGN_CENTER, 0, 40);
-  lv_obj_add_event_cb(btn, [](lv_event_t * e) {
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * obj = (lv_obj_t*) lv_event_get_target(e);
-    if(code == LV_EVENT_CLICKED) {
-      Serial.println("Button Clicked");
-      static int count = 0;
-      char buf[32];
-      snprintf(buf, sizeof(buf), "Button Clicked %d", count++);
-      lv_label_set_text(lv_obj_get_child(obj, 0), buf);
-    }
-  }, LV_EVENT_ALL, NULL);
-
-  lv_obj_t * label_btn = lv_label_create(btn);
-  lv_label_set_text(label_btn, "Click Me!");
-  lv_obj_center(label_btn);
+  lv_timer_create(add_data, 1, chart);
 }
 
 
